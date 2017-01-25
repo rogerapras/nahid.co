@@ -24,11 +24,9 @@ Author:	Ukieweb
 /* ------------------
     General setting
 --------------------*/
-*{
+body {
     font-family: 'Raleway', Helvetica, Arial, sans-serif;
     font-weight: 300;
-}
-body {
     font-size: 16px;
     line-height: 24px;
     margin: 0 auto;
@@ -771,7 +769,7 @@ a:hover, a:visited, a:focus, a:active{
     overflow: hidden;
 }
 .blog .post .photo img, .blog .post.one-post img{
-    width:100%;
+    width-max:100%;
     position: relative;
     webkit-transition: all 0.5s ease-out;
     -moz-transition: all 0.5s ease-out;
@@ -1190,4 +1188,15 @@ a:hover, a:visited, a:focus, a:active{
 pre{
    font-size: 14px !important;
    letter-spacing: 0.06em;
+}
+
+
+.title-link, .title-link:hover{
+  text-decoration: none;
+  color:inherit;
+}
+
+
+.search-box{
+    margin-top: -0em;
 }

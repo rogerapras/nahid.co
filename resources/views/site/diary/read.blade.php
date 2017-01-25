@@ -1,5 +1,41 @@
 @extends('site.layouts.master')
 
+@section('google-rich-content')
+<script type="application/ld+json">
+{
+  "@context": "http://schema.org",
+  "@type": "NewsArticle",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "{{url('/diary')}}"
+  },
+  "headline": "{{$diary->title}}",
+  "image": {
+    "@type": "ImageObject",
+    "url": "{{asset('media/diary/'.$diary->featured_image)}}",
+    "height": 800,
+    "width": 800
+  },
+  "datePublished": "{{$diary->created_at}}",
+  "dateModified": "{{$diary->updated_at}}",
+  "author": {
+    "@type": "Person",
+    "name": "{{$diary->user->name}}"
+  },
+   "publisher": {
+    "@type": "Organization",
+    "name": "NAH!D",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "{{url('/assets/img/logo.jpg')}}",
+      "width": "100px",
+      "height": "100px"
+    }
+  },
+  "description": "{{substr($diary->note,0 ,200)}}"
+}
+</script>
+@endsection
 @section('contents')
 
 <div class="post one-post">
@@ -12,9 +48,15 @@
                     <h3 class="title title-blog">{{$diary->title}}</h3>
                     <!-- end title post -->
                     <div class="entry-byline">
+                         <i class="fa fa-user"></i>
+                        <span class="entry-author right-border">
+                            <a href="{{url('profile/'.$diary->user->id)}}" title="Posts by {{$diary->user->name}}" rel="author" >
+                                <span>{{$diary->user->name}}</span>
+                            </a>
+                        </span>
                         <i class="fa fa-globe"></i>
                         <span class="entry-author right-border">
-                            <a href="{{url('diary/category/'.$diary->category->category_alias)}}" title="Posts by Theme Admin" rel="author">
+                            <a href="{{url('diary/category/'.$diary->category->category_alias)}}" title="Category of {{$diary->category->category_alias}}" rel="author">
                                 <span>{{$diary->category->category_name}}</span>
                             </a>
                         </span>

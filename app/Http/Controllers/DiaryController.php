@@ -12,19 +12,29 @@ use Validator;
 use Image;
 use Markdown;
 use DB;
+use Event;
+use Cache;
 
 use App\Http\Requests\DiaryCreateRequest;
 use App\Http\Requests\CommentsCreateRequest;
+use App\Events\MakeCommentsEvent;
 
 use App\Models\Diary;
 use App\Models\Category;
 use App\Models\Comments;
 use App\Models\Tags;
+use App\Models\Tagged;
 
 
 
 class DiaryController extends Controller
 {
+
+  function __construct()
+  {
+      $this->sidebarCategory();
+  }
+
    public function getIndex(){
      $diary=Diary::where('status', 1)->where('category_id', '!=', 7)->with(['tags'])->orderBy('created_at', 'desc')->paginate(10);
 
@@ -42,7 +52,7 @@ class DiaryController extends Controller
 
 
 
-   public function getRead(Request $req, $id){
+   public function getRead(Request $req, $id, $slag = null){
        $diary=Diary::with(['comments', 'tags'])->find($id);
 
        if($diary->status==0){
@@ -78,6 +88,7 @@ class DiaryController extends Controller
        $comment->diary_id=$req->input('diary_id');
        $comment->user_id=Auth::user()->id;
        if($comment->save()){
+           Event::fire(new MakeCommentsEvent($comment));
            return redirect('diary/read/'. $req->input('diary_id').'#comment')->with('msg', 'Successfully comment posted');
        }
    }
@@ -115,4 +126,72 @@ class DiaryController extends Controller
        $tags = Tags::select(DB::raw('id as value, tag_name as text'))->get();
        return response()->json($tags);
    }
+
+    public function getSearch(Request $req)
+    {
+        $query = rawurldecode($req->input('q'));
+        $words = explode(' ', $query);
+        $skipKeywords = ['in', 'are', 'of', 'at', 'a', 'is', 'to', 'an', 'for', 'and', 'or', 'with'];
+        $tags = [];
+
+        $keywords = array_diff($words, $skipKeywords);
+
+        $diary = Diary::with('tags')->where(function($q) use($keywords) {
+            foreach($keywords as $tag) {
+                $q->orWhere('diary.title', 'like', '%'.$tag.'%');
+            }
+        })->where('diary.status', 1)->orderBy('title', 'asc')->paginate(10);
+
+        if(count($diary)<1) {
+            $tags = Tags::where(function($q) use($words){
+                foreach ($words as $word) {
+                    $q->orWhere('tag_name', 'like', '%' . $word . '%');
+                }
+            })->get(['tag_name', 'id']);
+        }
+
+        return view('site.diary.diary', [
+            'pageInfo'=>[
+                'pageLogo'=>'diary',
+                'siteTitle'=>'Search | '. $query,
+                'pageHeading'=>'Search | '. $query,
+                'pageHeadingSlogan'=>'Search everything what I write'],
+            'data'=>$diary,
+            'tags'=>$tags
+        ]);
+    }
+
+
+
+    // pertials
+
+       protected function sidebarCategory(){
+        if(!Cache::has('_tags')){
+            $tags=Tagged::join('tags', 'tagged.tag_id','=', 'tags.id')->select('tags.id', DB::raw('count(tag_id) as total_tags'), 'tags.tag_name')->groupBy('tagged.tag_id')->take(20)->get();
+            Cache::put('_tags', $tags, 60);
+        }
+
+        if(!Cache::has('_category')){
+            $category=Category::get();
+            Cache::put('_category', $category, 60);
+        }
+
+        if(!Cache::has('_recent')){
+            $recent=Diary::where('status', 1)->orderBy('created_at','desc')->take(5)->get(['title', 'id']);
+            Cache::put('_recent', $recent, 60);
+        }
+        if(!Cache::has('_popular')){
+            $recent=Diary::where('status', 1)->orderBy('visits','desc')->take(5)->get(['title', 'id']);
+            Cache::put('_popular', $recent, 60);
+        }
+            view()->composer('site.partials.sidebar', function($view){
+                $view->with('navData', [
+                    'category'=>Cache::get('_category'),
+                    'recents'=>Cache::get('_recent'),
+                    'tags'=>Cache::get('_tags'),
+                    'populars' => Cache::get('_popular')
+                    ]);
+            });
+
+    }
 }
